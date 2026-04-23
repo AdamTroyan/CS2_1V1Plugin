@@ -1,30 +1,34 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
-using System.Reflection;
 
 namespace _1v1Round;
 
 public class OneVsOneRound : BasePlugin
 {
     public override string ModuleName => "1V1 Plugin";
-    public override string ModuleVersion => "1.0.0";
+    public override string ModuleVersion => "1.1.0";
 
-    // Fields
+
     private bool _enabled = true; // Default enabled
+
     private bool _isDuelActive = false;
     private bool _isDuelFinished = false;
+
     private float _lastCleanupTime = 0;
 
+    private List<ulong> _duelPlayers = new List<ulong>();
     private Dictionary<ulong, PlayerWeaponState> _playerSnapshots = new Dictionary<ulong, PlayerWeaponState>();
 
-    // --- Lifecycle ---
+
     public override void Load(bool hotReload)
     {
         AddCommand("css_admin1v1", "Toggle 1V1 system", OnToggleAdmin1v1);
 
         RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
+        RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
         RegisterEventHandler<EventRoundStart>(OnRoundStart);
         RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
@@ -32,14 +36,19 @@ public class OneVsOneRound : BasePlugin
         RegisterListener<Listeners.OnTick>(OnTickUpdate);
     }
 
-    // -- Event/Listeners/Commands Handlers --
-
+    // -- Handlers --
+    [RequiresPermissions("@css/generic")]
+    [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
     private void OnToggleAdmin1v1(CCSPlayerController? player, CommandInfo info)
     {
         _enabled = !_enabled;
         _isDuelActive = false;
 
+        Server.PrintToChatAll("\u200B");
+        Server.PrintToChatAll("\u200B");
         Server.PrintToChatAll($" {ChatColors.Green}[1V1] {ChatColors.Default}Status: {(_enabled ? "Enabled" : "Disabled")}");
+        Server.PrintToChatAll("\u200B");
+        Server.PrintToChatAll("\u200B");
     }
 
     private HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo info)
@@ -59,11 +68,51 @@ public class OneVsOneRound : BasePlugin
         return HookResult.Continue;
     }
 
+    private HookResult OnPlayerDisconnect(EventPlayerDisconnect @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null) return HookResult.Continue;
+
+        ulong disconnectedSteamId = player.SteamID;
+
+        _playerSnapshots.Remove(disconnectedSteamId);
+
+        if (_isDuelActive && _duelPlayers.Contains(disconnectedSteamId))
+        {
+            ulong winnerSteamId = _duelPlayers.FirstOrDefault(id => id != disconnectedSteamId);
+
+            _isDuelActive = false;
+            _isDuelFinished = false;
+            _duelPlayers.Clear();
+
+            if (winnerSteamId != 0)
+            {
+                var winner = Utilities.GetPlayerFromSteamId(winnerSteamId);
+                if (winner != null && winner.IsValid)
+                {
+                    AnnounceWinner(winner);
+
+                    AddTimer(0.1f, () =>
+                    {
+                        winner.PrintToChat("\u200B");
+                        winner.PrintToChat("\u200B");
+                        winner.PrintToChat($" {ChatColors.Green}[1v1] {ChatColors.Default}Your opponent left. Duel cancelled, you win!");
+                        winner.PrintToChat("\u200B");
+                        winner.PrintToChat("\u200B");
+                    });
+                }
+            }
+        }
+
+        return HookResult.Continue;
+    }
+
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
-        // Ensure that both field have been reset!
         _isDuelFinished = false;
         _isDuelActive = false;
+
+        _duelPlayers.Clear();
 
         return HookResult.Continue;
     }
@@ -74,6 +123,7 @@ public class OneVsOneRound : BasePlugin
 
         _isDuelActive = false;
         _isDuelFinished = true;
+        _duelPlayers.Clear();
 
         foreach (var p in Utilities.GetPlayers().Where(p => p.IsValid && p.PawnIsAlive))
         {
@@ -87,11 +137,11 @@ public class OneVsOneRound : BasePlugin
             if (survivors.Count == 1)
             {
                 var winner = survivors[0];
-                Server.PrintToChatAll($" {ChatColors.Green}[1v1] {ChatColors.Default}Player {ChatColors.Gold}{winner.PlayerName} {ChatColors.Default}won the duel!");
+                AnnounceWinner(winner);
             }
             else if (survivors.Count > 1)
             {
-                Server.PrintToChatAll($" {ChatColors.Green}[1v1] {ChatColors.Default}Round ended with both players alive!");
+                AnnounceWinner(null);
             }
 
         });
@@ -137,14 +187,13 @@ public class OneVsOneRound : BasePlugin
                 }
 
                 _playerSnapshots.Remove(player.SteamID);
-                player.PrintToChat($" {ChatColors.Green}[1v1] {ChatColors.Default}Restored: {ChatColors.Gold}{string.Join(", ", state.Weapons)}");
+                //player.PrintToChat($" {ChatColors.Green}[1v1] {ChatColors.Default}Restored: {ChatColors.Gold}{string.Join(", ", state.Weapons)}");
             }
         });
 
         return HookResult.Continue;
     }
 
-    // Check every tick if the players hold/have a deagle 
     private void OnTickUpdate()
     {
         if (_isDuelFinished)
@@ -160,7 +209,6 @@ public class OneVsOneRound : BasePlugin
                 if (hasDeagle)
                 {
                     RemoveAllWeapons(p);
-
                 }
             }
 
@@ -172,6 +220,8 @@ public class OneVsOneRound : BasePlugin
 
         foreach (var p in Utilities.GetPlayers().Where(p => p.IsValid && p.PawnIsAlive))
         {
+            if (!_duelPlayers.Contains(p.SteamID)) continue;
+
             var pawn = p.Pawn.Value;
             if (pawn?.WeaponServices == null) continue;
 
@@ -186,7 +236,7 @@ public class OneVsOneRound : BasePlugin
             }
         }
 
-        if (Server.CurrentTime >= _lastCleanupTime + 0.1f)
+        if (Server.CurrentTime >= _lastCleanupTime + 1.0f)
         {
             RemoveWeaponsOnGround();
             _lastCleanupTime = Server.CurrentTime;
@@ -194,7 +244,6 @@ public class OneVsOneRound : BasePlugin
     }
 
     // --- Core Duel Logic ---
-
     private void StartDuel(CCSPlayerController p1, CCSPlayerController p2)
     {
         _isDuelActive = true;
@@ -207,12 +256,41 @@ public class OneVsOneRound : BasePlugin
 
         Server.NextFrame(() =>
         {
+            Server.PrintToChatAll("\u200B");
+            Server.PrintToChatAll("\u200B");
+
             Server.PrintToChatAll($" {ChatColors.Green}[1V1] {ChatColors.Default}The duel between {ChatColors.Gold}{p1.PlayerName} {ChatColors.Default}And {ChatColors.Gold}{p2.PlayerName} {ChatColors.Default}has started! Deagle Only.");
+
+            Server.PrintToChatAll("\u200B");
+            Server.PrintToChatAll("\u200B");
         });
     }
 
-    // --- Helper Methods ---
+    private void AnnounceWinner(CCSPlayerController? winner)
+    {
+        if (winner == null)
+        {
+            Server.PrintToChatAll("\u200B");
+            Server.PrintToChatAll("\u200B");
+            Server.PrintToChatAll($" {ChatColors.Green}[1v1] {ChatColors.Default}The duel ended in a {ChatColors.Grey}Draw{ChatColors.Default}!");
+            Server.PrintToChatAll("\u200B");
+            Server.PrintToChatAll("\u200B");
 
+            return;
+        }
+
+        Server.PrintToChatAll("\u200B");
+        Server.PrintToChatAll("\u200B");
+        Server.PrintToChatAll($" {ChatColors.Green}[1v1] {ChatColors.Default}Player {ChatColors.Gold}{winner.PlayerName} {ChatColors.Default}won the duel!");
+        Server.PrintToChatAll("\u200B");
+        Server.PrintToChatAll("\u200B");
+
+        winner.PrintToCenter("!!! YOU WON THE DUEL !!!");
+
+        Console.WriteLine($"[1v1 Log] Duel Winner: {winner.PlayerName} (SteamID: {winner.SteamID})");
+    }
+
+    // --- Helper Methods ---
     private void UpdatePlayerSnapshot(CCSPlayerController player)
     {
         if (player == null || !player.IsValid || player.SteamID == 0) return;
@@ -243,9 +321,10 @@ public class OneVsOneRound : BasePlugin
     {
         UpdatePlayerSnapshot(player);
 
+        _duelPlayers.Add(player.SteamID);
+
         var pawn = player.PlayerPawn.Value;
         if (pawn == null) return;
-
 
         RemoveAllWeapons(player);
 
@@ -293,7 +372,7 @@ public class OneVsOneRound : BasePlugin
         var pawn = player.PlayerPawn.Value;
         if (pawn?.WeaponServices == null) return;
 
-        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        foreach (var weapon in pawn.WeaponServices.MyWeapons.ToList())
         {
             if (weapon.Value != null && weapon.Value.IsValid)
             {
@@ -303,4 +382,4 @@ public class OneVsOneRound : BasePlugin
     }
 }
 
-//      mp_freezetime 0; mp_warmup_end; bot_add
+//          bot_add; mp_freezetime 0; mp_warmup_end 
