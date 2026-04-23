@@ -25,7 +25,7 @@ public class OneVsOneRound : BasePlugin
 
     public override void Load(bool hotReload)
     {
-        AddCommand("css_admin1v1", "Toggle 1V1 system", OnToggleAdmin1v1);
+        AddCommand("css_1v1toggle", "Toggle 1V1 system", OnToggleAdmin1v1);
 
         RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
         RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
@@ -38,7 +38,7 @@ public class OneVsOneRound : BasePlugin
 
     // -- Handlers --
     [RequiresPermissions("@css/generic")]
-    [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
+    [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
     private void OnToggleAdmin1v1(CCSPlayerController? player, CommandInfo info)
     {
         _enabled = !_enabled;

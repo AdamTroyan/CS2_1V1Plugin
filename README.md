@@ -25,7 +25,7 @@ A robust, high-performance **CounterStrikeSharp** plugin for Counter-Strike 2 th
 
 ## ⌨️ Commands
 
-* `css_admin1v1`: Toggles the 1v1 system **ON** or **OFF** (Admin only).
+* `css_1v1toggle`: Toggles the 1v1 system **ON** or **OFF** (Admin only).
 
 ## 🔮 Upcoming Features (v1.2.0 - In Development)
 
