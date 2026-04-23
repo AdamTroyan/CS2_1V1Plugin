@@ -1,58 +1,36 @@
-# 1v1Round — CS2 Plugin
+# 1v1 Deagle Duel Plugin (CS2)
 
-A **CounterStrikeSharp** plugin for Counter-Strike 2.
+A robust, high-performance **CounterStrikeSharp** plugin for Counter-Strike 2 that automatically triggers a 1v1 Deagle duel when only two players remain alive.
 
-> ⚠️ **This is my very first plugin ever made with CounterStrikeSharp.**  
-> It is intended for use on **bot servers only** and is **not ready for online/competitive use**.
+## 🚀 Current Features (v1.1.0)
 
----
+* **Automatic 1v1 Trigger:** Detects when the round reaches a 1v1 situation and initiates the duel.
+* **Intelligent Weapon Management:**
+    * **Snapshots:** Saves players' current loadouts.
+    * **Cleanup:** Removes all weapons and provides a Desert Eagle.
+    * **Restoration:** Automatically restores original loadouts at the next player spawn.
+* **Anti-Exploit & Optimization:**
+    * **Ground Cleanup:** Periodically removes dropped weapons to maintain server performance.
+    * **Anti-Drop:** Prevents players from dropping their Deagle during the duel.
+* **Multiplayer Optimized:** * Thread-safe collection handling to prevent server crashes.
+    * Efficient `OnTick` logic to ensure minimal CPU impact.
+    * Clean, professional Chat UI with formatted spacing for better visibility.
 
-## What it does
+## 🛠 Installation
 
-When only one player remains alive on each team, the plugin automatically triggers a **1v1 duel** between them using only a Deagle. At the end of the duel, the winner is announced in chat and each player's original loadout is restored for the next round.
+1.  Ensure you have [CounterStrikeSharp](https://github.com/rofl0l/CounterStrikeSharp) installed on your server.
+2.  Download the plugin and place the `1v1Round` folder into:
+    `game/csgo/addons/counterstrikesharp/plugins/`
+3.  Restart the server or use the `css_plugins load 1v1Round` command.
 
-### Features
+## ⌨️ Commands
 
-- Auto-detects when a 1v1 situation arises and starts the duel
-- Forces both players to use a Deagle for the duel
-- Restores each player's weapons after the round ends
-- Admin command (`!css_admin1v1`) to toggle the plugin on/off
+* `css_admin1v1`: Toggles the 1v1 system **ON** or **OFF** (Admin only).
 
----
+## 🔮 Upcoming Features (v1.2.0 - In Development)
 
-## Requirements
+The next version will focus on **Persistent Data Collection & Player Analytics**. Planned updates include:
 
-- [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)
-- CS2 server
-
----
-
-## Installation
-
-1. Build the project or grab the compiled `.dll`
-2. Place it in your `csgo/addons/counterstrikesharp/plugins/` folder
-3. Restart the server
-
----
-
-## Current Limitations
-
-- **Designed for bot servers only** — behavior on online servers is untested and likely broken
-- No config file support yet
-- No per-player settings
-
----
-
-## Roadmap
-
-This is version `1.0.0`. Future versions will aim to:
-
-- Make the plugin fully functional for online servers
-- Add configuration options
-- Improve stability and edge case handling
-
----
-
-## Notes
-
-This project was built as a learning exercise to get familiar with the CounterStrikeSharp API. Feedback and suggestions are welcome!
+* **Advanced Statistics:** Tracking total duel wins, losses, and win streaks.
+* **Skill Tracking:** Monitoring and displaying Headshot percentages for every duel.
+* **Leaderboards:** In-game commands to view top duelists on the server.
